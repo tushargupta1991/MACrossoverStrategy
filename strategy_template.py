@@ -11,17 +11,14 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 @dataclass
-class MACrossoverStrategy(ABC):
+class StrategyTemplate(ABC):
     symbol: str = 'AAPL'
-    short_window: int = 5
-    long_window: int = 20
     start: str = '2010-01-01'
     end: str = field(default_factory=lambda: (datetime.datetime.today()-datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
-    mode: int = 1 # 1 => long only trades, -1 => short only trades
     plot: bool = False
-    bounds: Tuple = field(default_factory=lambda: ((3, 30), (20, 200)))
     train_split_ratio: float = 0.8
     num_trades: int = field(init=False, default=0)
     data: pd.DataFrame = field(init=False, default=None)
@@ -77,7 +74,9 @@ class MACrossoverStrategy(ABC):
     def plot_performance(self) -> None:
         #Plotting and saving the data
         if self.data is not None and self.plot:
+            #Generic plot
             plt.clf()
+            plt.figure(figsize=(14, 14))
             plt.plot(100*self.data['Cumulative Strategy Return'], label='Strategy')
             plt.plot(100*self.data['Cumulative Market Return'], label='Market')
             plt.legend()
@@ -85,30 +84,32 @@ class MACrossoverStrategy(ABC):
             plt.ylabel('Return (%)')
             plt.title('Cumulative Returns')
             
-            '''
             # Convert the DataFrame to a 2D list for the table function
             table_data = self.metrics.values.tolist()
-
-            # Add a table at the bottom of the axes
-            the_table = plt.table(cellText=table_data, colLabels=self.metrics.columns, rowLabels=self.metrics.index, loc='bottom', cellLoc='center',bbox=[0, -0.5, 1, 0.5])
+            
+            # Add a table at the bottom of the second plot
+            the_table = plt.table(cellText=table_data, colLabels=self.metrics.columns, rowLabels=self.metrics.index, loc='bottom', cellLoc='center', bbox=[0, -0.5, 1, 0.3])
             # Adjust table properties for better presentation
             the_table.auto_set_font_size(False)
             the_table.set_fontsize(10)
             the_table.scale(1, 1.5)
             # Adjust layout to make room for the table
-            plt.subplots_adjust(left=0.1, bottom=0.3, top=0.9, right=0.9)
-            '''
+            plt.subplots_adjust(left=0.1, bottom=0.2, top=0.9, right=0.9, hspace=0.5)
 
+            #Saving plot
             plot_directory = os.path.join(FILE_SAVE_DIRECTORY, 'Plots')
             os.makedirs(plot_directory, exist_ok=True)
-            plt.savefig(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}_{self.short_window}_{self.long_window}_{self.mode}.png'))
+            plt.savefig(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}_{self.mode}.png'))
+            logger.info('Plot saved successfully.')
 
             #Saving plot csv
             plot_directory = os.path.join(FILE_SAVE_DIRECTORY, 'Data')
             os.makedirs(plot_directory, exist_ok=True)
-            self.data.to_csv(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}_{self.short_window}_{self.long_window}_{self.mode}.csv'))
+            self.data.to_csv(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}_{self.mode}.csv'))
+            logger.info('Data saved successfully.')
     
     def train_test_split(self) -> Tuple:
+        if self.data is None or self.data.empty: self.fetch_data()
         split_index = int(self.train_split_ratio*len(self.data))
         train_data = self.data[:split_index]
         test_data = self.data[split_index:]
@@ -119,7 +120,3 @@ class MACrossoverStrategy(ABC):
         self.generate_signals()
         self.calculate_performance()
         self.plot_performance()
-
-if __name__ == '__main__':
-    data = yf.download('AAPL', start='2010-01-01', end='2020-01-01')
-    print(data['Adj Close'])
