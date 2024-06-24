@@ -125,16 +125,17 @@ class StrategyTemplate(ABC):
             # Adjust layout to make room for the table
             plt.subplots_adjust(left=0.1, bottom=0.2, top=0.9, right=0.9, hspace=0.5)
 
+            traintest = '' if self.plot not in ('train', 'test') else f'_{self.plot}'
             #Saving plot
             plot_directory = os.path.join(FILE_SAVE_DIRECTORY, 'Plots')
             os.makedirs(plot_directory, exist_ok=True)
-            plt.savefig(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}.png'))
+            plt.savefig(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}{traintest}.png'))
             logger.info('Plot saved successfully.')
 
             #Saving plot csv
             plot_directory = os.path.join(FILE_SAVE_DIRECTORY, 'Data')
             os.makedirs(plot_directory, exist_ok=True)
-            self.data.to_csv(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}.csv'))
+            self.data.to_csv(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}{traintest}.csv'))
             logger.info('Data saved successfully.')
     
     def train_test_split(self) -> Tuple:

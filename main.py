@@ -1,4 +1,5 @@
 from ma_strategy import MACrossoverStrategy
+from momentum_stategy import MomentumStrategy
 from tsmc_adr_strategy import TSMCLongShortStrategy
 from config import FILE_SAVE_DIRECTORY
 import matplotlib.pyplot as plt
@@ -20,10 +21,21 @@ def main():
     print(sma.test_metrics)
     '''
 
+    #Momentum Strategy
+    momentum = MomentumStrategy(symbol='AAPL', start='2010-01-01', plot=True)
+    momentum.run()
+    print(momentum.metrics)
+
+    momentum.optimize_parameters()
+    print(momentum.best_params)
+    print(momentum.train_metrics)
+
+    '''
     #TSMC Long Short Strategy
     tsmc = TSMCLongShortStrategy(symbol='TSMC', symbol_taiwan='2330.TW', symbol_adr='TSM', start='2020-01-01', plot=True)
     tsmc.run(neutral=True)
     print(tsmc.metrics)
+    '''
 
 if __name__ == '__main__':
     main()

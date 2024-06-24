@@ -57,7 +57,7 @@ class TSMCLongShortStrategy(StrategyTemplate):
         #Generating signals
         self.data['Signal'] = 0
         self.data.loc[self.data['Spread'] > self.data['Spread MA']+self.data['Spread STD'],'Signal'] = -1
-        self.data.loc[self.data['Spread'] < self.data['Spread MA']+self.data['Spread STD'],'Signal'] = 1
+        self.data.loc[self.data['Spread'] < self.data['Spread MA']-self.data['Spread STD'],'Signal'] = 1
 
         self.data['Position'] = self.data['Signal'].diff()
 
