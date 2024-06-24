@@ -71,6 +71,34 @@ class StrategyTemplate(ABC):
                         'Total Trades': [self.num_trades, 'N/A']}
         self.metrics = pd.DataFrame(self.metrics, index=['Strategy', 'Market']).T
 
+    def calculate_performance_nuetral(self, priceCol1='Close ADR', priceCol2='Close Taiwan', retCol1='Return ADR', retCol2='Return Taiwan') -> None:
+        self.data[retCol1] = self.data[priceCol1].pct_change()
+        self.data[retCol2] = self.data[priceCol2].pct_change()
+
+        #Calculate strategy return
+        self.data['Strategy Return'] = self.data['Signal'].shift(1)*(self.data[retCol1] - self.data[retCol2])
+
+        #Cumulative strategy return
+        self.data['Cumulative Strategy Return'] = (1 + self.data['Strategy Return']).cumprod() - 1
+
+        #Drawdown
+        self.data['Cumulative Strategy High'] = self.data['Cumulative Strategy Return'].cummax()
+        self.data['Drawdown'] = self.data['Cumulative Strategy High'] - self.data['Cumulative Strategy Return']
+
+        #Sharpe Ratio
+        sharpe_ratio_strategy = self.data['Strategy Return'].mean()/self.data['Strategy Return'].std()
+        self.sharpe_ratio_strategy_annualized = sharpe_ratio_strategy * np.sqrt(252)
+
+        logger.info(f'Strategy sharpe ratio: {self.sharpe_ratio_strategy_annualized}')
+
+        self.metrics = {'Sharpe Ratio': [round(self.sharpe_ratio_strategy_annualized,2)], 
+                        'Drawdown': [f'{100*self.data["Drawdown"].max():.2f}%'],
+                        'Total Return': [f"{100*self.data['Cumulative Strategy Return'].iloc[-1]:.2f}%"], 
+                        'Volatility': [f"{100*self.data['Strategy Return'].std()*np.sqrt(252):.2f}%"],
+                        'Cumulative High': [f"{100*self.data['Cumulative Strategy High'].iloc[-1]:.2f}%"],
+                        'Total Trades': [self.num_trades]}
+        self.metrics = pd.DataFrame(self.metrics, index=['Strategy']).T
+
     def plot_performance(self) -> None:
         #Plotting and saving the data
         if self.data is not None and self.plot:
@@ -78,7 +106,8 @@ class StrategyTemplate(ABC):
             plt.clf()
             plt.figure(figsize=(14, 14))
             plt.plot(100*self.data['Cumulative Strategy Return'], label='Strategy')
-            plt.plot(100*self.data['Cumulative Market Return'], label='Market')
+            if 'Cumulative Market Return' in self.data.columns:
+                plt.plot(100*self.data['Cumulative Market Return'], label='Market')
             plt.legend()
             plt.xlabel('Date')
             plt.ylabel('Return (%)')
@@ -99,13 +128,13 @@ class StrategyTemplate(ABC):
             #Saving plot
             plot_directory = os.path.join(FILE_SAVE_DIRECTORY, 'Plots')
             os.makedirs(plot_directory, exist_ok=True)
-            plt.savefig(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}_{self.mode}.png'))
+            plt.savefig(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}.png'))
             logger.info('Plot saved successfully.')
 
             #Saving plot csv
             plot_directory = os.path.join(FILE_SAVE_DIRECTORY, 'Data')
             os.makedirs(plot_directory, exist_ok=True)
-            self.data.to_csv(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}_{self.mode}.csv'))
+            self.data.to_csv(os.path.join(plot_directory, f'cumulative_returns_{self.symbol}_{self.start}_{self.end}.csv'))
             logger.info('Data saved successfully.')
     
     def train_test_split(self) -> Tuple:
@@ -115,8 +144,11 @@ class StrategyTemplate(ABC):
         test_data = self.data[split_index:]
         return train_data, test_data
 
-    def run(self) -> Tuple:
+    def run(self, neutral=False) -> Tuple:
         if self.data is None or self.data.empty: self.fetch_data()
         self.generate_signals()
-        self.calculate_performance()
+        if neutral:
+            self.calculate_performance_nuetral()
+        else:
+            self.calculate_performance()
         self.plot_performance()
